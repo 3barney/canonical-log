@@ -39,19 +39,19 @@ public class CanonicalLogAspect {
         Instant start = Instant.now();
 
         try {
-            Object result = jp.proceed();
-            long durationMs = Duration.between(start, Instant.now()).toMillis();
 
-            context.addEvent(new CanonicalLogContext.MethodStep(
+            Object result = jointPoint.proceed();
+            long durationMs = Duration.between(start, Instant.now()).toMillis();
+            context.addEvent(new CanonicalLogContext.MethodLogEvent(
                     start, className, methodName, capturedMaskedArgs, summarizeResult(result), durationMs, null
             ));
 
             return result;
 
         } catch (Throwable t) {
-            long durationMs = Duration.between(start, Instant.now()).toMillis();
 
-            context.addEvent(new CanonicalLogContext.MethodStep(
+            long durationMs = Duration.between(start, Instant.now()).toMillis();
+            context.addEvent(new CanonicalLogContext.MethodLogEvent(
                     start, className, methodName, capturedMaskedArgs, null, durationMs,
                     t.getClass().getSimpleName() + ": " + t.getMessage()
             ));
