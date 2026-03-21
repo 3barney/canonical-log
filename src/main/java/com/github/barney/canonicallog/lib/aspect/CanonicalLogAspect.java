@@ -10,6 +10,8 @@ import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 // Intercepts methods with @Tracked annotations and records their execution into log context
@@ -34,7 +36,29 @@ public class CanonicalLogAspect {
         Set<String> maskedArgs = Set.of(tracked.maskArgs());
         Map<String, Object> capturedMaskedArgs = captureArguments(jointPoint, maskedArgs);
 
-        return null;
+        Instant start = Instant.now();
+
+        try {
+            Object result = jp.proceed();
+            long durationMs = Duration.between(start, Instant.now()).toMillis();
+
+            context.addEvent(new CanonicalLogContext.MethodStep(
+                    start, className, methodName, capturedMaskedArgs, summarizeResult(result), durationMs, null
+            ));
+
+            return result;
+
+        } catch (Throwable t) {
+            long durationMs = Duration.between(start, Instant.now()).toMillis();
+
+            context.addEvent(new CanonicalLogContext.MethodStep(
+                    start, className, methodName, capturedMaskedArgs, null, durationMs,
+                    t.getClass().getSimpleName() + ": " + t.getMessage()
+            ));
+
+            // No exception swallowing
+            throw t;
+        }
     }
 
     private Map<String, Object> captureArguments(ProceedingJoinPoint jointPoint, Set<String> maskedArguments) {
