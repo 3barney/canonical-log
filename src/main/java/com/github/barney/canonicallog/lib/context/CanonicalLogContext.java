@@ -83,31 +83,31 @@ public class CanonicalLogContext {
     // Emit as key=value text pair
     public void emitTextLogEvent(Logger log) {
         try {
-            long totalMs = Duration.between(startTime, Instant.now()).toMillis();
+            long total = Duration.between(startTime, Instant.now()).toMillis();
             String outcome = deriveOutcome();
             String failureReason = deriveFailureReason();
 
-            StringBuilder sb = new StringBuilder("canonical-log");
-            sb.append(" http_method=").append(httpMethod);
-            sb.append(" http_path=").append(httpPath);
-            sb.append(" http_status=").append(httpStatus);
-            sb.append(" correlation_id=").append(correlationId);
-            sb.append(" outcome=").append(outcome);
+            StringBuilder stringBuilder = new StringBuilder("canonical-log-line");
+            stringBuilder.append(" http_method=").append(httpMethod);
+            stringBuilder.append(" http_path=").append(httpPath);
+            stringBuilder.append(" http_status=").append(httpStatus);
+            stringBuilder.append(" correlation_id=").append(correlationId);
+            stringBuilder.append(" outcome=").append(outcome);
             if (failureReason != null) {
-                sb.append(" failure_reason=\"").append(sanitize(failureReason)).append("\"");
+                stringBuilder.append(" failure_reason=\"").append(sanitize(failureReason)).append("\"");
             }
-            sb.append(" duration_ms=").append(totalMs);
-            sb.append(" step_count=").append(events.size());
-            sb.append(" steps=[");
+            stringBuilder.append(" duration_ms=").append(total);
+            stringBuilder.append(" step_count=").append(events.size());
+            stringBuilder.append(" steps=[");
 
             StringJoiner sj = new StringJoiner(", ");
             for (LogEvent e : events) {
                 sj.add(summarizeText(e));
             }
-            sb.append(sj);
-            sb.append("]");
+            stringBuilder.append(sj);
+            stringBuilder.append("]");
 
-            log.info(sb.toString());
+            log.info(stringBuilder.toString());
         } catch (Exception e) {
             log.error("Failed to emit canonical log line", e);
         }
@@ -118,20 +118,20 @@ public class CanonicalLogContext {
         try {
             long totalMs = Duration.between(startTime, Instant.now()).toMillis();
 
-            Map<String, Object> line = new LinkedHashMap<>();
-            line.put("log_type", "canonical-log-line");
-            line.put("http_method", httpMethod);
-            line.put("http_path", httpPath);
-            line.put("http_status", httpStatus);
-            line.put("correlation_id", correlationId);
-            line.put("outcome", deriveOutcome());
-            line.put("failure_reason", deriveFailureReason());
-            line.put("duration_ms", totalMs);
-            line.put("request_headers", maskHeaders(requestHeaders));
-            line.put("step_count", events.size());
-            line.put("steps", events.stream().map(this::toMap).toList());
+            Map<String, Object> logLine = new LinkedHashMap<>();
+            logLine.put("log_type", "canonical-log-line");
+            logLine.put("http_method", httpMethod);
+            logLine.put("http_path", httpPath);
+            logLine.put("http_status", httpStatus);
+            logLine.put("correlation_id", correlationId);
+            logLine.put("outcome", deriveOutcome());
+            logLine.put("failure_reason", deriveFailureReason());
+            logLine.put("duration_ms", totalMs);
+            logLine.put("request_headers", maskHeaders(requestHeaders));
+            logLine.put("step_count", events.size());
+            logLine.put("steps", events.stream().map(this::toMap).toList());
 
-            String json = MAPPER.writeValueAsString(line);
+            String json = MAPPER.writeValueAsString(logLine);
             log.info(json);
         } catch (JsonProcessingException e) {
             log.error("Failed to serialize canonical log line", e);
@@ -139,10 +139,11 @@ public class CanonicalLogContext {
     }
 
     private String deriveOutcome() {
-        boolean hasError = events.stream().anyMatch(e ->
-                (e instanceof MethodLogEvent ms && ms.error() != null) ||
-                        (e instanceof OutboundLogEvent os && os.error() != null) ||
-                        (e instanceof ErrorLogEvent));
+        boolean hasError = events.stream().anyMatch(logEvent ->
+                (logEvent instanceof MethodLogEvent methodLogEvent && methodLogEvent.error() != null) ||
+                        (logEvent instanceof OutboundLogEvent outboundLogEvent && outboundLogEvent.error() != null) ||
+                        (logEvent instanceof ErrorLogEvent));
+
         if (hasError) return "FAILED";
         if (httpStatus >= 400) return "FAILED";
         return "SUCCESS";
@@ -150,70 +151,73 @@ public class CanonicalLogContext {
 
     private String deriveFailureReason() {
         return events.stream()
-                .filter(e -> e instanceof ErrorLogEvent)
-                .map(e -> ((ErrorLogEvent) e).message())
+                .filter(ErrorLogEvent.class::isInstance)
+                .map(logEvent -> ((ErrorLogEvent) logEvent).message())
                 .findFirst()
                 .orElseGet(() -> events.stream()
-                        .filter(e -> e instanceof MethodLogEvent ms && ms.error() != null)
-                        .map(e -> ((MethodLogEvent) e).error())
+                        .filter(logEvent -> logEvent instanceof MethodLogEvent methodLogEvent && methodLogEvent.error() != null)
+                        .map(logEvent -> ((MethodLogEvent) logEvent).error())
                         .findFirst()
                         .orElseGet(() -> events.stream()
-                                .filter(e -> e instanceof OutboundLogEvent os && os.error() != null)
-                                .map(e -> ((OutboundLogEvent) e).error())
+                                .filter(logEvent -> logEvent instanceof OutboundLogEvent outboundLogEvent && outboundLogEvent.error() != null)
+                                .map(logEvent -> ((OutboundLogEvent) logEvent).error())
                                 .findFirst()
                                 .orElse(null)));
     }
 
     private String summarizeText(LogEvent event) {
         return switch (event) {
-            case MethodLogEvent m -> "{method=%s.%s, duration_ms=%d, status=%s}".formatted(
-                    m.className(), m.method(), m.durationMs(),
-                    m.error() == null ? "ok" : "error:" + truncate(m.error(), 80));
-            case EntityLogEvent e -> "{entity=%s, op=%s, id=%s}".formatted(
-                    e.entityType(), e.operation(), e.entityId());
-            case OutboundLogEvent o -> "{service=%s, endpoint=%s, http=%s, status=%d, duration_ms=%d%s}".formatted(
-                    o.service(), o.endpoint(), o.httpMethod(), o.statusCode(), o.durationMs(),
-                    o.error() != null ? ", error=" + truncate(o.error(), 60) : "");
-            case ErrorLogEvent err -> "{phase=%s, error=%s, message=%s}".formatted(
-                    err.phase(), err.errorType(), truncate(err.message(), 80));
+            case MethodLogEvent methodLogEvent -> "{method=%s.%s, duration_ms=%d, status=%s}".formatted(
+                    methodLogEvent.className(), methodLogEvent.method(), methodLogEvent.durationMs(),
+                    methodLogEvent.error() == null ? "ok" : "error:" + truncate(methodLogEvent.error(), 80));
+
+            case EntityLogEvent entityLogEvent -> "{entity=%s, op=%s, id=%s}".formatted(
+                    entityLogEvent.entityType(), entityLogEvent.operation(), entityLogEvent.entityId());
+
+            case OutboundLogEvent outboundLogEvent -> "{service=%s, endpoint=%s, http=%s, status=%d, duration_ms=%d%s}".formatted(
+                    outboundLogEvent.service(), outboundLogEvent.endpoint(), outboundLogEvent.httpMethod(), outboundLogEvent.statusCode(), outboundLogEvent.durationMs(),
+                    outboundLogEvent.error() != null ? ", error=" + truncate(outboundLogEvent.error(), 60) : "");
+
+            case ErrorLogEvent errorLogEvent -> "{phase=%s, error=%s, message=%s}".formatted(
+                    errorLogEvent.phase(), errorLogEvent.errorType(), truncate(errorLogEvent.message(), 80));
         };
     }
 
     private Map<String, Object> toMap(LogEvent event) {
-        Map<String, Object> m = new LinkedHashMap<>();
+        Map<String, Object> logLineEvent = new LinkedHashMap<>();
         switch (event) {
-            case MethodLogEvent ms -> {
-                m.put("type", "method");
-                m.put("class", ms.className());
-                m.put("method", ms.method());
-                m.put("args", ms.args());
-                m.put("result", ms.result());
-                m.put("duration_ms", ms.durationMs());
-                m.put("error", ms.error());
+            case MethodLogEvent methodLogEvent -> {
+                logLineEvent.put("type", "method");
+                logLineEvent.put("class", methodLogEvent.className());
+                logLineEvent.put("method", methodLogEvent.method());
+                logLineEvent.put("args", methodLogEvent.args());
+                logLineEvent.put("result", methodLogEvent.result());
+                logLineEvent.put("duration_ms", methodLogEvent.durationMs());
+                logLineEvent.put("error", methodLogEvent.error());
             }
-            case EntityLogEvent es -> {
-                m.put("type", "entity");
-                m.put("entity", es.entityType());
-                m.put("id", es.entityId());
-                m.put("operation", es.operation());
+            case EntityLogEvent entityLogEvent -> {
+                logLineEvent.put("type", "entity");
+                logLineEvent.put("entity", entityLogEvent.entityType());
+                logLineEvent.put("id", entityLogEvent.entityId());
+                logLineEvent.put("operation", entityLogEvent.operation());
             }
-            case OutboundLogEvent os -> {
-                m.put("type", "outbound");
-                m.put("service", os.service());
-                m.put("endpoint", os.endpoint());
-                m.put("http_method", os.httpMethod());
-                m.put("status_code", os.statusCode());
-                m.put("duration_ms", os.durationMs());
-                m.put("error", os.error());
+            case OutboundLogEvent outboundLogEvent -> {
+                logLineEvent.put("type", "outbound");
+                logLineEvent.put("service", outboundLogEvent.service());
+                logLineEvent.put("endpoint", outboundLogEvent.endpoint());
+                logLineEvent.put("http_method", outboundLogEvent.httpMethod());
+                logLineEvent.put("status_code", outboundLogEvent.statusCode());
+                logLineEvent.put("duration_ms", outboundLogEvent.durationMs());
+                logLineEvent.put("error", outboundLogEvent.error());
             }
-            case ErrorLogEvent err -> {
-                m.put("type", "error");
-                m.put("phase", err.phase());
-                m.put("error_type", err.errorType());
-                m.put("message", err.message());
+            case ErrorLogEvent errorLogEvent -> {
+                logLineEvent.put("type", "error");
+                logLineEvent.put("phase", errorLogEvent.phase());
+                logLineEvent.put("error_type", errorLogEvent.errorType());
+                logLineEvent.put("message", errorLogEvent.message());
             }
         }
-        return m;
+        return logLineEvent;
     }
 
     private Map<String, String> maskHeaders(Map<String, String> headers) {
