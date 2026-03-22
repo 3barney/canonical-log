@@ -1,6 +1,5 @@
 package com.github.barney.canonicallog.app.models.entity;
 
-import com.github.barney.canonicallog.app.listener.ApplicationEntityListener;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -8,7 +7,6 @@ import java.time.Instant;
 
 @Entity
 @Table(name = "repayment_transactions")
-@EntityListeners(ApplicationEntityListener.class)
 public class RepaymentTransaction {
 
     @Id

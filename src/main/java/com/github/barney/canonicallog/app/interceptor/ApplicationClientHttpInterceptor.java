@@ -29,7 +29,7 @@ public class ApplicationClientHttpInterceptor implements ClientHttpRequestInterc
             if (context != null) {
                 context.addEvent(new CanonicalLogContext.OutboundLogEvent(
                         start, service, endpoint, httpMethod,
-                        response.getStatusCode().value(), duration, null
+                        response.getStatusCode().value(), duration, null, null, null
                 ));
             }
 
@@ -42,7 +42,8 @@ public class ApplicationClientHttpInterceptor implements ClientHttpRequestInterc
             if (context != null) {
                 context.addEvent(new CanonicalLogContext.OutboundLogEvent(
                         start, service, endpoint, httpMethod,
-                        0, duration, e.getClass().getSimpleName() + ": " + e.getMessage()
+                        0, duration, e.getClass().getSimpleName() + ": " + e.getMessage(),
+                        null, null
                 ));
             }
 

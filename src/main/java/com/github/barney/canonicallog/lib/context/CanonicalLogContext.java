@@ -40,7 +40,7 @@ public class CanonicalLogContext {
 
     public record MethodLogEvent (Instant timestamp, String className, String method, Map<String, Object> args, Map<String, Object> result, long durationMs, String error) implements LogEvent {}
     public record EntityLogEvent (Instant timestamp, String entityType, String entityId, String operation) implements LogEvent {}
-    public record OutboundLogEvent (Instant timestamp, String service, String endpoint, String httpMethod, int statusCode, long durationMs, String error) implements LogEvent {}
+    public record OutboundLogEvent (Instant timestamp, String service, String endpoint, String httpMethod, int statusCode, long durationMs, String error, Map<String, String> requestHeaders, Map<String, String> responseHeaders) implements LogEvent {}
     public record ErrorLogEvent (Instant timestamp, String phase, String errorType, String message, String stackSnippet) implements LogEvent {}
 
     public void setHttpMethod(String httpMethod) {
@@ -89,6 +89,7 @@ public class CanonicalLogContext {
 
             StringBuilder stringBuilder = new StringBuilder("canonical-log-line");
             stringBuilder.append(" http_method=").append(httpMethod);
+            stringBuilder.append(" start_time").append(startTime);
             stringBuilder.append(" http_path=").append(httpPath);
             stringBuilder.append(" http_status=").append(httpStatus);
             stringBuilder.append(" correlation_id=").append(correlationId);
@@ -120,6 +121,7 @@ public class CanonicalLogContext {
 
             Map<String, Object> logLine = new LinkedHashMap<>();
             logLine.put("log_type", "canonical-log-line");
+            logLine.put("start_time", startTime);
             logLine.put("http_method", httpMethod);
             logLine.put("http_path", httpPath);
             logLine.put("http_status", httpStatus);
