@@ -28,6 +28,7 @@ public class CanonicalLogContext {
     private String httpMethod;
     private String httpPath;
     private String correlationId;
+    private String sourceSystem;
     private Map<String, String> requestHeaders;
     private Object requestBody;
     private int httpStatus;
@@ -40,7 +41,7 @@ public class CanonicalLogContext {
 
     public record MethodLogEvent (Instant timestamp, String className, String method, Map<String, Object> args, Map<String, Object> result, long durationMs, String error) implements LogEvent {}
     public record EntityLogEvent (Instant timestamp, String entityType, String entityId, String operation) implements LogEvent {}
-    public record OutboundLogEvent (Instant timestamp, String service, String endpoint, String httpMethod, int statusCode, long durationMs, String error, Map<String, String> requestHeaders, Map<String, String> responseHeaders) implements LogEvent {}
+    public record OutboundLogEvent (Instant timestamp, String service, String endpoint, String httpMethod, int statusCode, long durationMs, Map<String, String> requestHeaders, Map<String, String> responseHeaders, String error) implements LogEvent {}
     public record ErrorLogEvent (Instant timestamp, String phase, String errorType, String message, String stackSnippet) implements LogEvent {}
 
     public void setHttpMethod(String httpMethod) {
@@ -59,12 +60,19 @@ public class CanonicalLogContext {
         return this.correlationId;
     }
 
+    public void setSourceSystem(String sourceSystem) {
+        this.sourceSystem = sourceSystem;
+    }
+
+    public String getSourceSystem() {
+        return this.sourceSystem;
+    }
 
     public void setRequestHeaders(Map<String, String> requestHeaders) {
         this.requestHeaders = requestHeaders;
     }
 
-    public void setRequestBody(Object requestBody) {
+    public void setRequestBody(Map<String, Object> requestBody) {
         this.requestBody = requestBody;
     }
 
@@ -72,7 +80,7 @@ public class CanonicalLogContext {
         this.httpStatus = httpStatus;
     }
 
-    public void setResponseBody(Object responseBody) {
+    public void setResponseBody(Map<String, Object> responseBody) {
         this.responseBody = responseBody;
     }
 
@@ -93,6 +101,7 @@ public class CanonicalLogContext {
             stringBuilder.append(" http_path=").append(httpPath);
             stringBuilder.append(" http_status=").append(httpStatus);
             stringBuilder.append(" correlation_id=").append(correlationId);
+            stringBuilder.append(" source_system=").append(sourceSystem);
             stringBuilder.append(" outcome=").append(outcome);
             if (failureReason != null) {
                 stringBuilder.append(" failure_reason=\"").append(sanitize(failureReason)).append("\"");
@@ -126,10 +135,13 @@ public class CanonicalLogContext {
             logLine.put("http_path", httpPath);
             logLine.put("http_status", httpStatus);
             logLine.put("correlation_id", correlationId);
+            logLine.put("source_system", sourceSystem);
             logLine.put("outcome", deriveOutcome());
             logLine.put("failure_reason", deriveFailureReason());
             logLine.put("duration_ms", totalMs);
             logLine.put("request_headers", maskHeaders(requestHeaders));
+            logLine.put("request_body", requestBody);
+            logLine.put("response_body", responseBody);
             logLine.put("step_count", events.size());
             logLine.put("steps", events.stream().map(this::toMap).toList());
 
@@ -210,6 +222,8 @@ public class CanonicalLogContext {
                 logLineEvent.put("http_method", outboundLogEvent.httpMethod());
                 logLineEvent.put("status_code", outboundLogEvent.statusCode());
                 logLineEvent.put("duration_ms", outboundLogEvent.durationMs());
+                logLineEvent.put("request_headers", maskHeaders(outboundLogEvent.requestHeaders));
+                logLineEvent.put("response_headers", maskHeaders(outboundLogEvent.responseHeaders));
                 logLineEvent.put("error", outboundLogEvent.error());
             }
             case ErrorLogEvent errorLogEvent -> {
