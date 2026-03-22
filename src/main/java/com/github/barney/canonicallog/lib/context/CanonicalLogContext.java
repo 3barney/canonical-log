@@ -38,7 +38,7 @@ public class CanonicalLogContext {
         Instant timestamp();
     }
 
-    public record MethodLogEvent (Instant timestamp, String className, String method, Map<String, Object> args, Object result, long durationMs, String error) implements LogEvent {}
+    public record MethodLogEvent (Instant timestamp, String className, String method, Map<String, Object> args, Map<String, Object> result, long durationMs, String error) implements LogEvent {}
     public record EntityLogEvent (Instant timestamp, String entityType, String entityId, String operation) implements LogEvent {}
     public record OutboundLogEvent (Instant timestamp, String service, String endpoint, String httpMethod, int statusCode, long durationMs, String error) implements LogEvent {}
     public record ErrorLogEvent (Instant timestamp, String phase, String errorType, String message, String stackSnippet) implements LogEvent {}

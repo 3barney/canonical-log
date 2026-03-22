@@ -12,7 +12,6 @@ public class SensitiveMasker {
 
     // use simple phone and email pattern :: phone assumption is it starts with +COUNTRY_CODE
     private static final Pattern PHONE_PATTERN = Pattern.compile("(\\+?\\d{1,4})(\\d+)(\\d{4})");
-    private static final Pattern EMAIL_PATTERN = Pattern.compile("(.)([^@]*)(@.+)");
     private SensitiveMasker() {}
 
     public static boolean isSensitive(String key) {
@@ -53,5 +52,13 @@ public class SensitiveMasker {
             result = result.replaceAll("(?i)(\"" + key + "\"\\s*:\\s*\")(.*?)(\")", "$1****$3");
         }
         return result;
+    }
+
+    // Mask all sensitive keys in a map. Returns a new map
+    public static Map<String, Object> maskMap(Map<String, ?> input) {
+        if (input == null) return Map.of();
+        Map<String, Object> masked = new LinkedHashMap<>();
+        input.forEach((k, v) -> masked.put(k, maskIfSensitive(k, v)));
+        return masked;
     }
 }
