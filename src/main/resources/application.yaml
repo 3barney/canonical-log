@@ -27,11 +27,11 @@ spring:
 
 ledger-service:
   api:
-    base-url: http://localhost:8080/mock/ledger_service
+    base-url: http://localhost:8080/mock/ledger-service
 
 canonical:
   log:
-    format: text # "text" for grep-friendly logfmt, "json" for structured JSON
+    format: json # "text" for grep-friendly logfmt, "json" for structured JSON
     include-bodies: true
 
 logging:

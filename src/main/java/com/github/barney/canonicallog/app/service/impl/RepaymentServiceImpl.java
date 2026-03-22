@@ -1,6 +1,5 @@
 package com.github.barney.canonicallog.app.service.impl;
 
-import com.github.barney.canonicallog.app.models.dto.RepaymentDto;
 import com.github.barney.canonicallog.app.models.dto.RepaymentDto.MsisdnQueryResponse;
 import com.github.barney.canonicallog.app.models.dto.RepaymentDto.MsisdnQueryRequest;
 import com.github.barney.canonicallog.app.models.dto.RepaymentDto.RepaymentRequest;
