@@ -36,7 +36,8 @@ import java.util.*;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 public class ApplicationLogFilter extends OncePerRequestFilter {
 
-    private static final Logger canonicalLog = LoggerFactory.getLogger("canonical");
+    private static final Logger canonicalTextLog = LoggerFactory.getLogger("canonical.text");
+    private static final Logger canonicalJsonLog = LoggerFactory.getLogger("canonical.json");
     private static final ObjectMapper bodyMapper = new ObjectMapper();
 
     @Value("${canonical.log.format:text}")
@@ -88,9 +89,9 @@ public class ApplicationLogFilter extends OncePerRequestFilter {
                         }
 
                         if ("json".equalsIgnoreCase(logFormat)) {
-                            logContext.emitJsonLogEvent(canonicalLog);
+                            logContext.emitJsonLogEvent(canonicalJsonLog);
                         } else {
-                            logContext.emitTextLogEvent(canonicalLog);
+                            logContext.emitTextLogEvent(canonicalTextLog);
                         }
 
                         try {

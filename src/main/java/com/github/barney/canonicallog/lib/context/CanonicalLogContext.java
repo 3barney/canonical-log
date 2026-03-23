@@ -1,11 +1,7 @@
 package com.github.barney.canonicallog.lib.context;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.github.barney.canonicallog.lib.masking.SensitiveMasker;
+import net.logstash.logback.marker.Markers;
 import org.slf4j.Logger;
 
 import java.time.Duration;
@@ -18,11 +14,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 // Logging context object
 public class CanonicalLogContext {
-
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .registerModule(new JavaTimeModule())
-            .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
-            .setDefaultPropertyInclusion(JsonInclude.Include.NON_NULL);
 
     private final Instant startTime = Instant.now();
     private String httpMethod;
@@ -125,31 +116,26 @@ public class CanonicalLogContext {
 
     // Emit as structured JSON  (ELK, Loki)
     public void emitJsonLogEvent(Logger log) {
-        try {
-            long totalMs = Duration.between(startTime, Instant.now()).toMillis();
+        long totalMs = Duration.between(startTime, Instant.now()).toMillis();
 
-            Map<String, Object> logLine = new LinkedHashMap<>();
-            logLine.put("log_type", "canonical-log-line");
-            logLine.put("start_time", startTime);
-            logLine.put("http_method", httpMethod);
-            logLine.put("http_path", httpPath);
-            logLine.put("http_status", httpStatus);
-            logLine.put("correlation_id", correlationId);
-            logLine.put("source_system", sourceSystem);
-            logLine.put("outcome", deriveOutcome());
-            logLine.put("failure_reason", deriveFailureReason());
-            logLine.put("duration_ms", totalMs);
-            logLine.put("request_headers", maskHeaders(requestHeaders));
-            logLine.put("request_body", requestBody);
-            logLine.put("response_body", responseBody);
-            logLine.put("step_count", events.size());
-            logLine.put("steps", events.stream().map(this::toMap).toList());
+        Map<String, Object> logLine = new LinkedHashMap<>();
+        logLine.put("log_type", "canonical-log-line");
+        logLine.put("start_time", startTime.toString());
+        logLine.put("http_method", httpMethod);
+        logLine.put("http_path", httpPath);
+        logLine.put("http_status", httpStatus);
+        logLine.put("correlation_id", correlationId);
+        logLine.put("source_system", sourceSystem);
+        logLine.put("outcome", deriveOutcome());
+        logLine.put("failure_reason", deriveFailureReason());
+        logLine.put("duration_ms", totalMs);
+        logLine.put("request_headers", maskHeaders(requestHeaders));
+        logLine.put("request_body", requestBody);
+        logLine.put("response_body", responseBody);
+        logLine.put("step_count", events.size());
+        logLine.put("steps", events.stream().map(this::toMap).toList());
 
-            String json = MAPPER.writeValueAsString(logLine);
-            log.info(json);
-        } catch (JsonProcessingException e) {
-            log.error("Failed to serialize canonical log line", e);
-        }
+        log.info(Markers.appendEntries(logLine), "canonical-log-line");
     }
 
     private String deriveOutcome() {
