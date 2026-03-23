@@ -98,6 +98,9 @@ public class CanonicalLogContext {
                 stringBuilder.append(" failure_reason=\"").append(sanitize(failureReason)).append("\"");
             }
             stringBuilder.append(" duration_ms=").append(total);
+            stringBuilder.append(" request_headers=").append(maskHeaders(requestHeaders));
+            stringBuilder.append(" request_body").append(requestBody);
+            stringBuilder.append(" response_body").append(responseBody);
             stringBuilder.append(" step_count=").append(events.size());
             stringBuilder.append(" steps=[");
 
@@ -120,8 +123,8 @@ public class CanonicalLogContext {
 
         Map<String, Object> logLine = new LinkedHashMap<>();
         logLine.put("log_type", "canonical-log-line");
-        logLine.put("start_time", startTime.toString());
         logLine.put("http_method", httpMethod);
+        logLine.put("start_time", startTime.toString());
         logLine.put("http_path", httpPath);
         logLine.put("http_status", httpStatus);
         logLine.put("correlation_id", correlationId);
